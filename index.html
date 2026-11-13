@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeuroPlay — Brain Training Games</title>
+  <style>
+    :root {
+      --ink: #202342;
+      --muted: #737793;
+      --purple: #7048e8;
+      --pink: #f06292;
+      --surface: #fff;
+      --background: #f5f4fb;
+      --correct: #218c68;
+      --wrong: #c94d5e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 28px 16px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 10%, #e8e1ff 0, transparent 25%),
+        radial-gradient(circle at 95% 85%, #ffe4ef 0, transparent 24%),
+        var(--background);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+
+    .app { width: min(900px, 100%); margin: 0 auto; }
+    header { margin-bottom: 24px; text-align: center; }
+
+    .logo {
+      display: inline-grid;
+      width: 52px;
+      height: 52px;
+      place-items: center;
+      border-radius: 17px;
+      color: white;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      font-size: 26px;
+      box-shadow: 0 8px 20px #7048e840;
+    }
+
+    h1 { margin: 10px 0 4px; font-size: clamp(2rem, 6vw, 2.8rem); }
+    header p { margin: 0; color: var(--muted); }
+
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 22px 0;
+    }
+
+    .stat {
+      min-width: 115px;
+      padding: 11px 18px;
+      border: 1px solid #e8e6f1;
+      border-radius: 16px;
+      background: #ffffffc9;
+      text-align: center;
+    }
+
+    .stat strong { display: block; font-size: 1.25rem; }
+    .stat span { color: var(--muted); font-size: .82rem; }
+
+    .game-menu {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .game-tab {
+      padding: 13px 10px;
+      border: 1px solid #e8e6f1;
+      border-radius: 14px;
+      color: var(--ink);
+      background: #ffffffc9;
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, background .15s;
+    }
+
+    .game-tab:hover { transform: translateY(-2px); border-color: #b6a5f2; }
+    .game-tab.active { color: white; border-color: var(--purple); background: var(--purple); }
+
+    .game-card {
+      min-height: 390px;
+      padding: clamp(20px, 5vw, 36px);
+      border: 1px solid #e9e6f2;
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: 0 14px 40px #36305c12;
+      text-align: center;
+    }
+
+    .game-card h2 { margin: 0 0 5px; font-size: 1.55rem; }
+    .hint { margin: 0 0 18px; color: var(--muted); }
+
+    .round-info {
+      display: inline-block;
+      margin: 0 0 20px;
+      padding: 7px 13px;
+      border-radius: 20px;
+      color: #5637bd;
+      background: #f0edfc;
+      font-size: .9rem;
+      font-weight: 700;
+    }
+
+    .prompt {
+      margin: 18px 0;
+      font-size: clamp(2rem, 8vw, 3.2rem);
+      font-weight: 750;
+    }
+
+    .choices {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .choice, .action {
+      min-width: 90px;
+      padding: 13px 20px;
+      border: 1px solid #e7e4f0;
+      border-radius: 14px;
+      color: var(--ink);
+      background: #faf9fd;
+      font-weight: 650;
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, background .15s;
+    }
+
+    .choice:hover, .action:hover { transform: translateY(-2px); border-color: var(--purple); }
+    .action { color: white; border-color: var(--purple); background: var(--purple); }
+    .action:hover { background: #5e37d2; }
+    button:disabled { cursor: default; opacity: .7; transform: none; }
+
+    .feedback { min-height: 28px; margin: 16px 0 0; font-weight: 700; }
+    .feedback.good { color: var(--correct); }
+    .feedback.bad { color: var(--wrong); }
+
+    .bubble {
+      min-width: 85px;
+      width: 85px;
+      height: 85px;
+      border: 0;
+      border-radius: 50%;
+      color: white;
+      background: linear-gradient(145deg, #9a7af5, #6846de);
+      box-shadow: inset -5px -7px 12px #4330a533, 0 8px 16px #7048e830;
+    }
+
+    .bubble:nth-child(3n + 2) { background: linear-gradient(145deg, #ff9ab9, #e74f83); }
+    .bubble:nth-child(3n) { background: linear-gradient(145deg, #64cdb4, #259b80); }
+    .bubble.selected { outline: 4px solid #30215f; outline-offset: 3px; }
+
+    .memory-grid, .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(48px, 75px));
+      justify-content: center;
+      gap: 10px;
+      margin: 20px auto;
+    }
+
+    .memory-card {
+      display: grid;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 0;
+      border-radius: 13px;
+      color: white;
+      background: #8c75e8;
+      font-size: 1.6rem;
+      cursor: pointer;
+    }
+
+    .memory-card.open, .memory-card.matched { color: var(--ink); background: #f0edfc; }
+    .memory-card.matched { outline: 2px solid #9ed8c5; }
+
+    .number-input {
+      width: min(320px, 100%);
+      margin: 10px 0;
+      padding: 13px;
+      border: 2px solid #e3def3;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 1.2rem;
+    }
+
+    .word-list {
+      color: var(--purple);
+      font-size: 1.4rem;
+      font-weight: 700;
+      line-height: 1.8;
+    }
+
+    .pattern-tile {
+      aspect-ratio: 1;
+      border: 0;
+      border-radius: 15px;
+      background: #e9e6f3;
+      cursor: pointer;
+    }
+
+    .pattern-tile.lit { background: #9b83f4; box-shadow: 0 0 20px #9b83f477; }
+    .pattern-tile:disabled { opacity: 1; cursor: default; }
+
+    .level-message { padding-top: 70px; }
+    .level-message .prompt { color: var(--purple); }
+
+    footer { margin-top: 18px; color: var(--muted); text-align: center; font-size: .85rem; }
+
+    @media (max-width: 560px) {
+      body { padding: 20px 12px; }
+      .game-menu { grid-template-columns: repeat(2, 1fr); }
+      .game-card { min-height: 360px; }
+      .stat { min-width: 95px; padding: 10px; }
+      .bubble { min-width: 72px; width: 72px; height: 72px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="logo" aria-hidden="true">🧠</div>
+      <h1>NeuroPlay</h1>
+      <p>Little challenges for your curious brain.</p>
+    </header>
+
+    <section class="stats" aria-label="Game stats">
+      <div class="stat"><strong id="score">0</strong><span>Points</span></div>
+      <div class="stat"><strong id="streak">0</strong><span>Best streak</span></div>
+    </section>
+
+    <nav class="game-menu" aria-label="Choose a game">
+      <button class="game-tab active" data-game="math">➗ Math Sprint</button>
+      <button class="game-tab" data-game="bubbles">🫧 Word Bubbles</button>
+      <button class="game-tab" data-game="memory">🃏 Memory Match</button>
+      <button class="game-tab" data-game="sequence">🔢 Number Sequence</button>
+      <button class="game-tab" data-game="recall">💭 Word Recall</button>
+      <button class="game-tab" data-game="pattern">✨ Pattern Recall</button>
+    </nav>
+
+    <section class="game-card" id="game" aria-live="polite"></section>
+    <footer>Each round has 12 questions. Keep going to reach the next level!</footer>
+  </main>
+
+  <script>
+    const QUESTIONS_PER_ROUND = 12;
+    const gameArea = document.getElementById("game");
+    const scoreDisplay = document.getElementById("score");
+    const streakDisplay = document.getElementById("streak");
+    const tabs = [...document.querySelectorAll(".game-tab")];
+
+    let score = 0;
+    let streak = 0;
+    let activeGame = "math";
+    let answered = false;
+    let timer;
+
+    const progress = Object.fromEntries(
+      ["math", "bubbles", "memory", "sequence", "recall", "pattern"]
+        .map(id => [id, { level: 1, question: 1 }])
+    );
+
+    const wordGroups = [
+      { prefix: "win", level: 1, words: ["win", "window", "winner", "winning", "winter", "wing", "wink"] },
+      { prefix: "sun", level: 1, words: ["sun", "sunny", "sunset", "sunrise", "sunlight"] },
+      { prefix: "rain", level: 1, words: ["rain", "rainbow", "raincoat", "rainfall"] },
+      { prefix: "book", level: 1, words: ["book", "booking", "booklet", "bookmark"] },
+      { prefix: "star", level: 1, words: ["star", "start", "starfish", "starlight"] },
+      { prefix: "play", level: 2, words: ["play", "player", "playful", "playing", "playground"] },
+      { prefix: "light", level: 2, words: ["light", "lighter", "lighting", "lighten"] },
+      { prefix: "snow", level: 2, words: ["snow", "snowman", "snowball", "snowfall"] },
+      { prefix: "hand", level: 2, words: ["hand", "handle", "handful", "handshake"] },
+      { prefix: "moon", level: 2, words: ["moon", "moonlight", "moonbeam"] },
+      { prefix: "bright", level: 3, words: ["bright", "brighten", "brightness"] },
+      { prefix: "friend", level: 3, words: ["friend", "friendly", "friendship"] },
+      { prefix: "water", level: 3, words: ["water", "waterfall", "waterproof"] },
+      { prefix: "school", level: 3, words: ["school", "schoolbag", "schoolwork"] },
+      { prefix: "green", level: 3, words: ["green", "greenhouse", "greenery"] },
+      { prefix: "care", level: 4, words: ["care", "careful", "careless", "carefully"] },
+      { prefix: "hope", level: 4, words: ["hope", "hopeful", "hopeless", "hopefully"] },
+      { prefix: "kind", level: 4, words: ["kind", "kindness", "kindly"] }
+    ];
+
+    const wordBank = new Set(wordGroups.flatMap(group => group.words));
+    const recallWords = [
+      "apple", "planet", "garden", "silver", "window", "pencil",
+      "rocket", "cloud", "bridge", "music", "candle", "forest",
+      "pillow", "button", "island", "orange"
+    ];
+    const emojis = ["🍎", "🚀", "🌙", "🌻", "🐳", "🍉", "🎈", "🦋"];
+
+    function updateStats() {
+      scoreDisplay.textContent = score;
+      streakDisplay.textContent = streak;
+    }
+
+    function shuffle(items) {
+      const result = [...items];
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result;
+    }
+
+    function shell(title, hint) {
+      const state = progress[activeGame];
+      gameArea.innerHTML = `
+        <h2>${title}</h2>
+        <p class="hint">${hint}</p>
+        <div class="round-info">Level ${state.level} · Question ${state.question} of ${QUESTIONS_PER_ROUND}</div>
+        <div class="play-area"></div>
+      `;
+      return gameArea.querySelector(".play-area");
+    }
+
+    function addFeedback(area, text, good) {
+      const message = document.createElement("p");
+      message.className = `feedback ${good ? "good" : "bad"}`;
+      message.textContent = text;
+      area.appendChild(message);
+    }
+
+    function resolveQuestion(correct, message) {
+      if (answered) return;
+      answered = true;
+
+      if (correct) {
+        score += 10;
+        streak += 1;
+      } else {
+        streak = 0;
+      }
+      updateStats();
+
+      const area = gameArea.querySelector(".play-area");
+      if (area) {
+        area.querySelectorAll("button, input").forEach(element => {
+          element.disabled = true;
+        });
+        addFeedback(area, message, correct);
+      }
+
+      timer = setTimeout(() => advanceRound(activeGame), 850);
+    }
+
+    function advanceRound(gameId) {
+      const state = progress[gameId];
+      state.question += 1;
+
+      if (state.question > QUESTIONS_PER_ROUND) {
+        state.question = 1;
+        state.level += 1;
+
+        if (gameId === activeGame) {
+          answered = false;
+          gameArea.innerHTML = `
+            <div class="level-message">
+              <h2>Round complete!</h2>
+              <p class="prompt">Level ${state.level}</p>
+              <p class="hint">Get ready — the next round starts automatically.</p>
+            </div>
+          `;
+          timer = setTimeout(() => renderGame(gameId), 1500);
+          return;
+        }
+      }
+
+      if (gameId === activeGame) renderGame(gameId);
+    }
+
+    function renderGame(id) {
+      activeGame = id;
+      answered = false;
+      clearTimeout(timer);
+      games[id]();
+    }
+
+    function startMath() {
+      const area = shell("Math Sprint", "Solve the problem and choose an answer.");
+      const level = progress.math.level;
+      const max = Math.min(12 + level * 4, 70);
+      const operations = level < 3 ? ["+", "−"] : ["+", "−", "×"];
+      const operation = operations[Math.floor(Math.random() * operations.length)];
+      const a = Math.floor(Math.random() * max) + 2;
+      const b = Math.floor(Math.random() * max) + 1;
+      let left = a, right = b, answer;
+
+      if (operation === "−") {
+        left = Math.max(a, b);
+        right = Math.min(a, b);
+        answer = left - right;
+      } else if (operation === "×") {
+        left = Math.floor(Math.random() * (3 + Math.min(level, 8))) + 2;
+        right = Math.floor(Math.random() * (3 + Math.min(level, 8))) + 2;
+        answer = left * right;
+      } else {
+        answer = a + b;
+      }
+
+      const prompt = document.createElement("div");
+      prompt.className = "prompt";
+      prompt.textContent = `${left} ${operation} ${right} = ?`;
+      area.appendChild(prompt);
+
+      const options = new Set([answer]);
+      while (options.size < 4) {
+        options.add(Math.max(0, answer + Math.floor(Math.random() * (level * 5 + 9)) - (level * 2 + 4)));
+      }
+
+      const choices = document.createElement("div");
+      choices.className = "choices";
+      shuffle([...options]).forEach(value => {
+        const button = document.createElement("button");
+        button.className = "choice";
+        button.textContent = value;
+        button.addEventListener("click", () => {
+          resolveQuestion(value === answer, value === answer ? "Correct! Great work." : `The answer was ${answer}.`);
+        });
+        choices.appendChild(button);
+      });
+      area.appendChild(choices);
+    }
+
+    function startBubbles() {
+      const area = shell("Word Bubbles", "Choose a prefix bubble, then type a real word that starts with it.");
+      const level = progress.bubbles.level;
+      const available = wordGroups.filter(group => group.level <= Math.min(level, 4));
+      const prefixCount = Math.min(2 + Math.floor((level - 1) / 2), 4);
+      const groups = shuffle(available).slice(0, prefixCount);
+      let selectedGroup = null;
+
+      const instruction = document.createElement("p");
+      instruction.className = "hint";
+      instruction.textContent = "Pick a starting word:";
+      area.appendChild(instruction);
+
+      const bubbles = document.createElement("div");
+      bubbles.className = "choices";
+
+      const input = document.createElement("input");
+      input.className = "number-input";
+      input.type = "text";
+      input.autocomplete = "off";
+      input.placeholder = "Choose a bubble first";
+      input.setAttribute("aria-label", "Type a word starting with the selected prefix");
+      input.disabled = true;
+
+      const submit = document.createElement("button");
+      submit.className = "action";
+      submit.textContent = "Submit word";
+      submit.disabled = true;
+
+      groups.forEach(group => {
+        const button = document.createElement("button");
+        button.className = "choice bubble";
+        button.textContent = group.prefix;
+        button.setAttribute("aria-label", `Choose prefix ${group.prefix}`);
+        button.addEventListener("click", () => {
+          if (answered) return;
+          selectedGroup = group;
+          bubbles.querySelectorAll("button").forEach(item => item.classList.remove("selected"));
+          button.classList.add("selected");
+          input.disabled = false;
+          input.placeholder = `A word starting with "${group.prefix}"`;
+          submit.disabled = false;
+          input.focus();
+        });
+        bubbles.appendChild(button);
+      });
+
+      function checkWord() {
+        if (!selectedGroup || answered) return;
+        const typedWord = input.value.trim().toLowerCase();
+        const correct = typedWord.startsWith(selectedGroup.prefix) && wordBank.has(typedWord);
+        resolveQuestion(
+          correct,
+          correct
+            ? `Nice spelling! “${typedWord}” starts with ${selectedGroup.prefix}.`
+            : `Try a real word that starts with “${selectedGroup.prefix}”.`
+        );
+      }
+
+      submit.addEventListener("click", checkWord);
+      input.addEventListener("keydown", event => {
+        if (event.key === "Enter") checkWord();
+      });
+
+      area.append(bubbles, document.createElement("br"), input, document.createElement("br"), submit);
+    }
+
+    function startMemory() {
+      const area = shell("Memory Match", "Find all matching pairs. Each board counts as one question.");
+      const pairCount = Math.min(3 + Math.floor(progress.memory.level / 2), 8);
+      const deck = shuffle([...emojis.slice(0, pairCount), ...emojis.slice(0, pairCount)]);
+      const grid = document.createElement("div");
+      grid.className = "memory-grid";
+      let openCards = [];
+      let matched = 0;
+      let locked = false;
+
+      deck.forEach(symbol => {
+        const card = document.createElement("button");
+        card.className = "memory-card";
+        card.textContent = "?";
+        card.setAttribute("aria-label", "Hidden card");
+
+        card.addEventListener("click", () => {
+          if (locked || answered || card.classList.contains("open") || card.classList.contains("matched")) return;
+
+          card.classList.add("open");
+          card.textContent = symbol;
+          card.setAttribute("aria-label", symbol);
+          openCards.push({ card, symbol });
+
+          if (openCards.length === 2) {
+            locked = true;
+            const [first, second] = openCards;
+
+            if (first.symbol === second.symbol) {
+              first.card.classList.add("matched");
+              second.card.classList.add("matched");
+              matched += 1;
+              openCards = [];
+              locked = false;
+
+              if (matched === pairCount) {
+                resolveQuestion(true, "All pairs found! Nicely remembered.");
+              }
+            } else {
+              streak = 0;
+              updateStats();
+              setTimeout(() => {
+                if (answered) return;
+                first.card.classList.remove("open");
+                second.card.classList.remove("open");
+                first.card.textContent = "?";
+                second.card.textContent = "?";
+                first.card.setAttribute("aria-label", "Hidden card");
+                second.card.setAttribute("aria-label", "Hidden card");
+                openCards = [];
+                locked = false;
+              }, 750);
+            }
+          }
+        });
+
+        grid.appendChild(card);
+      });
+
+      area.appendChild(grid);
+    }
+
+    function startSequence() {
+      const area = shell("Number Sequence", "Memorize the number. It will disappear automatically.");
+      const level = progress.sequence.level;
+      const length = Math.min(3 + level, 12);
+      const sequence = Array.from({ length }, () => Math.floor(Math.random() * 10)).join("");
+      const prompt = document.createElement("div");
+      prompt.className = "prompt";
+      prompt.textContent = sequence;
+      area.appendChild(prompt);
+
+      const displayTime = Math.max(900, 3200 - (level - 1) * 250);
+      const countdown = document.createElement("p");
+      countdown.className = "hint";
+      countdown.textContent = "Remember it!";
+      area.appendChild(countdown);
+
+      timer = setTimeout(() => {
+        if (activeGame !== "sequence" || answered) return;
+
+        prompt.textContent = "••••••";
+        countdown.textContent = "Type the digits in the same order.";
+        const input = document.createElement("input");
+        input.className = "number-input";
+        input.type = "text";
+        input.inputMode = "numeric";
+        input.maxLength = length;
+        input.placeholder = "Type the number";
+        input.setAttribute("aria-label", "Type the number sequence");
+
+        const submit = document.createElement("button");
+        submit.className = "action";
+        submit.textContent = "Submit";
+        submit.addEventListener("click", () => {
+          const correct = input.value === sequence;
+          resolveQuestion(correct, correct ? "Perfect memory!" : `The sequence was ${sequence}.`);
+        });
+        input.addEventListener("keydown", event => {
+          if (event.key === "Enter") submit.click();
+        });
+
+        area.append(input, document.createElement("br"), submit);
+        input.focus();
+      }, displayTime);
+    }
+
+    function startRecall() {
+      const area = shell("Word Recall", "Memorize the words. Then select one you saw.");
+      const count = Math.min(3 + Math.floor(progress.recall.level / 2), 8);
+      const shownWords = shuffle(recallWords).slice(0, count);
+      const list = document.createElement("div");
+      list.className = "word-list";
+      list.textContent = shownWords.join(" · ");
+      area.appendChild(list);
+
+      timer = setTimeout(() => {
+        if (activeGame !== "recall" || answered) return;
+
+        list.textContent = "Which word did you see?";
+        const correctWord = shownWords[Math.floor(Math.random() * shownWords.length)];
+        const wrongWords = shuffle(recallWords.filter(word => !shownWords.includes(word))).slice(0, 3);
+        const choices = document.createElement("div");
+        choices.className = "choices";
+
+        shuffle([correctWord, ...wrongWords]).forEach(word => {
+          const button = document.createElement("button");
+          button.className = "choice";
+          button.textContent = word;
+          button.addEventListener("click", () => {
+            const correct = word === correctWord;
+            resolveQuestion(correct, correct ? "Yes, that word was there!" : `The word was “${correctWord}”.`);
+          });
+          choices.appendChild(button);
+        });
+
+        area.appendChild(choices);
+      }, Math.max(1500, 3500 - (progress.recall.level - 1) * 180));
+    }
+
+    function startPattern() {
+      const area = shell("Pattern Recall", "Watch the tiles light up, then repeat the pattern.");
+      const length = Math.min(3 + progress.pattern.level, 12);
+      const grid = document.createElement("div");
+      grid.className = "*
